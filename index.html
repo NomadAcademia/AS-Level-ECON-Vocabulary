@@ -588,6 +588,8 @@ function filterWords(q){
 
 function goTo(idx){
   if(idx<0||idx>=vocab.length)return;
+  // Sync XP whenever the user moves between questions
+  syncXP();
   currentIndex=idx;
   const item=vocab[idx];
   document.querySelectorAll('.li').forEach(e=>e.classList.remove('active'));
@@ -648,22 +650,38 @@ function revealDef(){
 }
 
 function handleScore(correct){
-  const item=vocab[currentIndex];
+  const item = vocab[currentIndex];
+  
   if(correct){
-    streak++; xp+=20;
+    streak++; 
+    xp += 20;
     if(!mastered.includes(item.word)){
       mastered.push(item.word);
-      const li=document.getElementById('li'+currentIndex);
-      if(li){li.classList.add('done');li.querySelector('.dot').style.background='var(--green)';}
-      syncXP();
+      const li = document.getElementById('li'+currentIndex);
+      if(li){
+        li.classList.add('done');
+        li.querySelector('.dot').style.background='var(--green)';
+      }
     }
     confetti({particleCount:110,spread:65,origin:{y:.7},colors:['#00e5ff','#00ff88','#ffd700']});
   } else {
-    streak=0;
+    streak = 0;
   }
-  saveState(); updateStats(); updateProgress();
-  if(currentIndex<vocab.length-1){ setTimeout(()=>goTo(currentIndex+1),600); } 
-  else { setTimeout(showDone,700); }
+
+  // --- THE FIX ---
+  // We moved syncXP() here so it runs every time a button is clicked,
+  // ensuring the Google Sheet always has the latest XP.
+  syncXP(); 
+
+  saveState(); 
+  updateStats(); 
+  updateProgress();
+
+  if(currentIndex < vocab.length - 1){ 
+    setTimeout(() => goTo(currentIndex + 1), 600); 
+  } else { 
+    setTimeout(showDone, 700); 
+  }
 }
 
 function backToInput(){ showQ(); }
