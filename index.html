@@ -96,6 +96,10 @@ body::before {
 .sf { padding: 13px 14px; border-top: 1px solid var(--bdr); flex-shrink: 0; }
 .btn-reset { width: 100%; background: rgba(255,71,87,.1); border: 1px solid rgba(255,71,87,.28); color: var(--red); border-radius: 10px; padding: 9px; font-family: 'Syne',sans-serif; font-size: .72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: background .2s; }
 
+/* ── SUGGESTION BOX ── */
+#suggestion-zone { padding: 10px; border-top: 1px solid var(--bdr); }
+.btn-suggest { width: 100%; background: var(--s2); border: 1px solid var(--bdr); color: var(--text); border-radius: 10px; padding: 8px; font-family: 'Syne',sans-serif; font-size: .7rem; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+
 /* ── MAIN ── */
 #main { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; position: relative; z-index: 1; overflow-y: auto; }
 .stats-bar { position: absolute; top: 18px; right: 18px; display: flex; gap: 7px; z-index: 10; }
@@ -138,9 +142,8 @@ textarea::placeholder { color: var(--muted); font-size: .86rem; }
 .cov-pct { font-family: 'JetBrains Mono',monospace; font-weight: 700; font-size: .8rem; min-width: 36px; text-align: right; }
 
 .comp { background: rgba(0,0,0,.38); border: 1px solid var(--bdr); border-radius: 13px; padding: 13px 17px; margin-bottom: 11px; }
-.comp-lbl { font-size: .6rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 7px; }
-.comp-lbl.yours { color: var(--primary); }
-.comp-lbl.official { color: var(--accent); }
+.comp-lbl yours { color: var(--primary); }
+.comp-lbl official { color: var(--accent); }
 .comp-text { font-size: .9rem; line-height: 1.7; color: #d1d8ed; }
 .kw-hit { background: rgba(0,255,136,.14); color: var(--green); border-radius: 4px; padding: 0 3px; font-weight: 700; }
 .kw-miss { background: rgba(255,71,87,.14); color: #ff8a96; border-radius: 4px; padding: 0 3px; font-weight: 700; }
@@ -203,6 +206,11 @@ textarea::placeholder { color: var(--muted); font-size: .86rem; }
     <span id="prog-text">0 / 0</span>
   </div>
   <div id="word-list"></div>
+
+  <div id="suggestion-zone">
+    <button class="btn-suggest" onclick="openModal('m-suggest')">💡 提交建议 · Suggestion</button>
+  </div>
+
   <div class="sf">
     <button class="btn-reset" onclick="openModal('m-reset')">🔄 重新开始 · Reset All</button>
   </div>
@@ -263,11 +271,23 @@ textarea::placeholder { color: var(--muted); font-size: .86rem; }
   </div>
 </div>
 
+<div class="overlay" id="m-suggest">
+  <div class="modal">
+    <div class="m-ico">💡</div>
+    <div class="m-ttl">Submit Suggestion</div>
+    <textarea id="suggest-input" placeholder="Tell us how to improve..." style="height:80px; margin-top:10px;"></textarea>
+    <div class="m-btns">
+      <button class="mb cancel" onclick="closeModal('m-suggest')">Close</button>
+      <button class="mb full" onclick="submitSuggestion()">Submit</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="m-reset">
   <div class="modal">
     <div class="m-ico">🔄</div>
     <div class="m-ttl">Reset Everything?</div>
-    <div class="m-body">This will erase all your progress.</div>
+    <div class="m-body">This will erase all your progress and your name.</div>
     <div class="m-btns">
       <button class="mb cancel" onclick="closeModal('m-reset')">Cancel</button>
       <button class="mb danger" onclick="confirmReset()">Reset</button>
@@ -286,209 +306,17 @@ textarea::placeholder { color: var(--muted); font-size: .86rem; }
 </div>
 
 <script>
-// --- LEADERBOARD CONFIG ---
+// --- CONFIG ---
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbys8Z1NnytOFPE6wgbj_LagCmhkWM0gd5njwYbZ8jbnWE6yVsy-caPvx2xnJPuWbGYK/exec";
 let studentName = "";
 
 const vocab=[
-  {word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
-  {word:"Ad Valorem Tax",zh:"从价税",def:"An indirect tax charged as a percentage of the value of a good or service.",keys:["percentage","value","indirect tax","price"]},
-  {word:"Adam Smith",zh:"亚当·斯密",def:"An economist who developed the theory of free markets and the division of labour.",keys:["free market","division of labour","economist","theory"]},
-  {word:"Adverse Selection",zh:"逆向选择",def:"A situation arising from asymmetric information where higher-risk individuals are more likely to participate in a transaction.",keys:["asymmetric information","high risk","market failure","information"]},
-  {word:"Aggregate Demand",zh:"总需求",def:"The total demand for goods and services in an economy at a given price level and time period.",keys:["total demand","economy","price level","spending"]},
-  {word:"Aggregate Supply",zh:"总供给",def:"The total output of goods and services that firms are willing and able to produce in an economy.",keys:["total output","firms","produce","economy"]},
-  {word:"Appreciation",zh:"升值",def:"An increase in the value of a currency in terms of another currency in a floating exchange rate system.",keys:["currency value","increase","exchange rate","floating"]},
-  {word:"Average Product",zh:"平均产量",def:"Output per unit of labour, calculated by dividing total output by the number of workers.",keys:["output per worker","total output","labour","average"]},
-  {word:"Balance of Payments",zh:"国际收支",def:"A record of all economic transactions between residents of a country and the rest of the world over a period of time.",keys:["record","transactions","rest of world","period"]},
-  {word:"Balance of Trade",zh:"贸易收支",def:"The difference between the value of a country's exports and imports of goods.",keys:["exports","imports","difference","goods"]},
-  {word:"Barter",zh:"以物易物",def:"The direct exchange of goods and services without the use of money.",keys:["no money","exchange","goods","services"]},
-  {word:"Capital",zh:"资本",def:"Man-made resources used in the production of goods and services, such as machinery and equipment.",keys:["man-made","production","machinery","resources"]},
-  {word:"Change in Demand",zh:"需求变动",def:"A shift of the demand curve caused by factors other than price.",keys:["shift","demand curve","non-price","factors"]},
-  {word:"Change in Quantity Demanded",zh:"需求量变动",def:"A movement along the demand curve caused by a change in the price of the good.",keys:["movement","price change","along curve","quantity"]},
-  {word:"Command Economy",zh:"计划经济",def:"An economic system where resource allocation is determined by the government.",keys:["government","allocation","central planning","system"]},
-  {word:"Comparative Advantage",zh:"比较优势",def:"The ability of a country to produce a good at a lower opportunity cost than another country.",keys:["opportunity cost","lower","trade","specialisation"]},
-  {word:"Complementary Goods",zh:"互补品",def:"Goods that are used together, where an increase in the price of one leads to a decrease in demand for the other.",keys:["used together","price effect","joint demand","related"]},
-  {word:"Consumer Surplus",zh:"消费者剩余",def:"The difference between what consumers are willing to pay and what they actually pay.",keys:["willingness to pay","actual price","benefit","difference"]},
-  {word:"Cost-benefit Analysis",zh:"成本收益分析",def:"A method of evaluating a project by comparing its total expected costs with its total expected benefits.",keys:["compare","costs","benefits","decision"]},
-  {word:"Cost-push Inflation",zh:"成本推动型通胀",def:"Inflation caused by increases in the costs of production, such as wages or raw materials.",keys:["cost increase","wages","inputs","inflation"]},
-  {word:"Cross Elasticity of Demand",zh:"需求交叉弹性",def:"A measure of how the quantity demanded of one good responds to a change in the price of another good.",keys:["related goods","price change","responsiveness","demand"]},
-  {word:"Current Account",zh:"经常账户",def:"The part of the balance of payments that records trade in goods and services, income, and current transfers.",keys:["trade","income","transfers","BOP"]},
-  {word:"Demand-pull Inflation",zh:"需求拉动型通胀",def:"Inflation caused by an increase in aggregate demand exceeding aggregate supply.",keys:["aggregate demand","exceeds supply","inflation","pressure"]},
-  {word:"Demerit Goods",zh:"劣等品",def:"Goods that are over-consumed and generate negative externalities, often due to lack of information.",keys:["overconsumption","negative externality","information failure","harmful"]},
-  {word:"Depreciation",zh:"贬值",def:"A fall in the value of a currency in a floating exchange rate system.",keys:["currency","fall","exchange rate","market"]},
-  {word:"Division of Labour",zh:"劳动分工",def:"The specialization of workers in particular tasks to increase efficiency and output.",keys:["specialisation","efficiency","tasks","output"]},
-  {word:"Economic Growth",zh:"经济增长",def:"An increase in the productive capacity of an economy, usually measured by real GDP.",keys:["increase","capacity","real GDP","output"]},
-  {word:"Economic Problem",zh:"经济问题",def:"The problem of allocating scarce resources to satisfy unlimited wants.",keys:["scarcity","allocation","resources","wants"]},
-  {word:"Elasticity",zh:"弹性",def:"A measure of the responsiveness of one variable to a change in another variable.",keys:["responsiveness","change","measure","variables"]},
-  {word:"Enterprise",zh:"企业才能",def:"The factor of production involving risk-taking and decision-making in organizing production.",keys:["risk","decision-making","organisation","production"]},
-  {word:"Equilibrium",zh:"均衡",def:"A situation where there is no tendency for change because opposing forces are balanced.",keys:["balance","no change","market","forces"]},
-  {word:"Equilibrium Quantity",zh:"均衡数量",def:"The quantity bought and sold at the equilibrium price in a market.",keys:["equilibrium","quantity","market","traded"]},
-  {word:"Externality",zh:"外部性",def:"A cost or benefit arising from an economic activity that affects third parties and is not reflected in market prices.",keys:["third party","cost","benefit","market failure"]},
-  {word:"Factor of Production",zh:"生产要素",def:"Resources used in the production of goods and services, including land, labour, capital, and enterprise.",keys:["land","labour","capital","enterprise"]},
-  {word:"Free Market",zh:"自由市场",def:"An economic system where prices and resource allocation are determined by supply and demand without government intervention.",keys:["supply demand","prices","no intervention","market"]},
-  {word:"Income Elasticity of Demand",zh:"需求收入弹性",def:"A measure of how the quantity demanded of a good responds to a change in consumer income.",keys:["income change","demand","responsiveness","normal inferior"]},
-  {word:"Inflation",zh:"通货膨胀",def:"A sustained increase in the general price level of goods and services in an economy.",keys:["price level","increase","sustained","economy"]},
-  {word:"Law of Demand",zh:"需求定律",def:"The principle that as price falls, quantity demanded increases, ceteris paribus.",keys:["inverse relationship","price","quantity demanded","ceteris paribus"]},
-  {word:"Law of Supply",zh:"供给定律",def:"The principle that as price rises, quantity supplied increases, ceteris paribus.",keys:["direct relationship","price","quantity supplied","ceteris paribus"]},
-  {word:"Excise Duties",zh:"消费税",def:"Indirect taxes imposed on specific goods, often to reduce consumption of harmful products.",keys:["indirect tax","specific goods","reduce consumption","government"]},
-  {word:"Exports",zh:"出口",def:"Goods and services sold from one country to another.",keys:["sell abroad","goods","services","foreign"]},
-  {word:"External Benefits",zh:"外部收益",def:"Benefits from production or consumption that are received by third parties.",keys:["third party","benefits","positive externality","spillover"]},
-  {word:"External Costs",zh:"外部成本",def:"Costs from production or consumption that are imposed on third parties.",keys:["third party","costs","negative externality","spillover"]},
-  {word:"Factor Endowment",zh:"要素禀赋",def:"The quantity and quality of factors of production available in a country.",keys:["resources","availability","labour","capital"]},
-  {word:"Factor Mobility",zh:"要素流动性",def:"The ease with which factors of production can move between different uses or locations.",keys:["movement","labour","capital","flexibility"]},
-  {word:"Floating Exchange Rate",zh:"浮动汇率",def:"An exchange rate determined by market forces of demand and supply for a currency.",keys:["market forces","currency","demand supply","rate"]},
-  {word:"Foreign Direct Investment",zh:"外商直接投资",def:"Investment by a firm in another country to establish or expand business operations.",keys:["investment abroad","firms","ownership","capital"]},
-  {word:"Foreign Exchange Rate",zh:"外汇汇率",def:"The price of one currency expressed in terms of another currency.",keys:["currency price","exchange","rate","foreign"]},
-  {word:"Free Goods",zh:"免费物品",def:"Goods that are not scarce and have no opportunity cost, such as air.",keys:["no scarcity","no cost","abundant","resources"]},
-  {word:"Free Rider",zh:"搭便车者",def:"A person who benefits from a good without paying for it.",keys:["no payment","benefit","public goods","market failure"]},
-  {word:"Globalisation",zh:"全球化",def:"The increasing integration and interdependence of economies through trade, investment, and technology.",keys:["integration","trade","investment","world"]},
-  {word:"Imports",zh:"进口",def:"Goods and services purchased from other countries.",keys:["buy abroad","goods","services","foreign"]},
-  {word:"Inelastic",zh:"缺乏弹性",def:"A situation where quantity demanded or supplied responds proportionally less than the change in price.",keys:["low responsiveness","price change","elasticity","<1"]},
-  {word:"Infant Industry Argument",zh:"幼稚产业论",def:"The argument for protecting new domestic industries until they become competitive internationally.",keys:["protection","new industry","developing","trade"]},
-  {word:"Inferior Good",zh:"低档品",def:"A good for which demand decreases as consumer income increases.",keys:["income rise","demand falls","consumer behaviour","good"]},
-  {word:"Information Failure",zh:"信息失灵",def:"A situation where decision-makers lack full or accurate information, leading to inefficient outcomes.",keys:["lack information","inefficiency","market failure","decisions"]},
-  {word:"Interest",zh:"利息",def:"The cost of borrowing money or the reward for saving money.",keys:["borrowing","saving","cost","reward"]},
-  {word:"Investment",zh:"投资",def:"Spending on capital goods that will be used to produce future goods and services.",keys:["capital goods","future production","spending","firms"]},
-  {word:"Joint Demand",zh:"联合需求",def:"Demand for goods that are used together.",keys:["together","complementary","joint consumption","related"]},
-  {word:"Joint Supply",zh:"联合供给",def:"Production of two or more goods from the same process.",keys:["same process","multiple outputs","production","linked"]},
-  {word:"Labour",zh:"劳动力",def:"The human effort used in the production of goods and services.",keys:["human effort","workers","production","factor"]},
-  {word:"Land",zh:"土地",def:"All natural resources used in production, including raw materials and natural inputs.",keys:["natural resources","raw materials","production","factor"]},
-  {word:"Law of Demand",zh:"需求定律",def:"The principle that quantity demanded rises as price falls, ceteris paribus.",keys:["inverse","price","quantity","demand"]},
-  {word:"Law of Supply",zh:"供给定律",def:"The principle that quantity supplied rises as price rises, ceteris paribus.",keys:["direct","price","quantity","supply"]},
-  {word:"Liquidity",zh:"流动性",def:"The ease with which an asset can be converted into cash without loss of value.",keys:["cash","convert","ease","asset"]},
-  {word:"Market",zh:"市场",def:"A system or place where buyers and sellers interact to exchange goods and services.",keys:["buyers","sellers","exchange","interaction"]},
-  {word:"Market Demand",zh:"市场需求",def:"The total demand for a good by all consumers in a market.",keys:["total demand","consumers","market","sum"]},
-  {word:"Market Economy",zh:"市场经济",def:"An economy where resource allocation is determined by market forces of demand and supply.",keys:["market forces","allocation","demand","supply"]},
-  {word:"Market Failure",zh:"市场失灵",def:"A situation where the market does not allocate resources efficiently.",keys:["inefficiency","allocation","resources","failure"]},
-  {word:"Market Mechanism",zh:"市场机制",def:"The process by which prices adjust to equate demand and supply.",keys:["price adjustment","demand supply","allocation","mechanism"]},
-  {word:"Merit Goods",zh:"优等品",def:"Goods that are under-consumed in a free market because their benefits are underestimated.",keys:["underconsumed","positive externality","government","benefits"]},
-  {word:"Microeconomics",zh:"微观经济学",def:"The study of individual markets, firms, and consumer behaviour.",keys:["individual","markets","firms","consumers"]},
-  {word:"Macroeconomics",zh:"宏观经济学",def:"The study of the economy as a whole, including inflation, unemployment, and growth.",keys:["whole economy","inflation","unemployment","growth"]},
-  {word:"Monopoly",zh:"垄断",def:"A market structure where a single firm dominates the market with high barriers to entry.",keys:["single firm","barriers","market power","structure"]},
-  {word:"Money Supply",zh:"货币供应量",def:"The total amount of money circulating in an economy.",keys:["total money","circulation","economy","supply"]},
-  {word:"Multinational Corporation",zh:"跨国公司",def:"A firm that operates in more than one country.",keys:["multiple countries","firm","international","business"]},
-  {word:"National Income",zh:"国民收入",def:"The total income earned by factors of production in an economy over a period.",keys:["total income","factors","economy","period"]},
-  {word:"Needs",zh:"需要",def:"Basic goods and services required for survival.",keys:["basic","survival","essential","goods"]},
-  {word:"Negative Externality",zh:"负外部性",def:"A cost imposed on third parties from production or consumption.",keys:["third party","cost","external","negative"]},
-  {word:"Normal Good",zh:"正常物品",def:"A good for which demand increases as income increases.",keys:["income rise","demand increases","consumer","good"]},
-  {word:"Opportunity Cost",zh:"机会成本",def:"The value of the next best alternative foregone when making a choice.",keys:["next best","alternative","choice","foregone"]},
-  {word:"Perfect Competition",zh:"完全竞争",def:"A market structure with many buyers and sellers, homogeneous products, and no barriers to entry.",keys:["many firms","no barriers","identical goods","market"]},
-  {word:"Price Mechanism",zh:"价格机制",def:"The system by which prices allocate resources in a market economy.",keys:["prices","allocation","resources","market"]},
-  {word:"Production",zh:"生产",def:"The process of creating goods and services to satisfy human wants.",keys:["create","goods","services","output"]},
-  {word:"Productivity",zh:"生产率",def:"Output per unit of input, often measured as output per worker.",keys:["output","input","efficiency","labour"]},
-  {word:"Public Goods",zh:"公共物品",def:"Goods that are non-rival and non-excludable.",keys:["non-rival","non-excludable","public","goods"]},
-  {word:"Scarcity",zh:"稀缺性",def:"The condition where limited resources are insufficient to satisfy unlimited wants.",keys:["limited","resources","unlimited","wants"]},
-  {word:"Subsidy",zh:"补贴",def:"A payment by the government to producers to encourage production or consumption.",keys:["government","payment","encourage","production"]},
-  {word:"Substitute Goods",zh:"替代品",def:"Goods that can be used in place of each other.",keys:["alternative","replace","goods","choice"]},
-  {word:"Supply",zh:"供给",def:"The quantity of a good that producers are willing and able to supply at a given price.",keys:["producers","willing","able","price"]},
-  {word:"Tariff",zh:"关税",def:"A tax imposed on imported goods.",keys:["tax","imports","government","trade"]},
-  {word:"Unemployment",zh:"失业",def:"A situation where individuals willing and able to work cannot find a job.",keys:["no job","willing","able","labour"]},
-  {word:"Wants",zh:"欲望",def:"Human desires for goods and services beyond basic needs.",keys:["desires","unlimited","goods","services"]},
-  {word:"Nominal Value",zh:"名义价值",def:"The value of a variable measured at current prices, without adjusting for inflation.",keys:["current prices","no adjustment","inflation","value"]},
-  {word:"Real Value",zh:"实际价值",def:"The value of a variable adjusted for inflation to reflect purchasing power.",keys:["adjusted","inflation","purchasing power","real"]},
-  {word:"Non-excludable",zh:"非排他性",def:"A characteristic of a good where it is not possible to prevent others from consuming it.",keys:["cannot exclude","access","public goods","consumption"]},
-  {word:"Non-rival",zh:"非竞争性",def:"A characteristic of a good where one person's consumption does not reduce availability for others.",keys:["no reduction","shared","consumption","public goods"]},
-  {word:"Normative Economics",zh:"规范经济学",def:"Economic statements based on value judgements about what ought to be.",keys:["value judgement","opinion","should","subjective"]},
-  {word:"Positive Economics",zh:"实证经济学",def:"Economic statements based on objective facts that can be tested.",keys:["facts","testable","objective","analysis"]},
-  {word:"Other Things Being Equal",zh:"其他条件不变",def:"An assumption that all other variables are held constant when examining the effect of one variable.",keys:["ceteris paribus","constant","isolate","change"]},
-  {word:"Paternalism",zh:"家长主义",def:"Government intervention aimed at protecting individuals from making harmful decisions.",keys:["government","protect","intervention","decisions"]},
-  {word:"Pegged Exchange Rate",zh:"盯住汇率",def:"An exchange rate fixed or maintained within a band by government or central bank intervention.",keys:["fixed","controlled","currency","intervention"]},
-  {word:"Perfectly Elastic",zh:"完全弹性",def:"A situation where quantity demanded or supplied is infinitely responsive to price changes.",keys:["infinite","responsive","price","elasticity"]},
-  {word:"Perfectly Inelastic",zh:"完全无弹性",def:"A situation where quantity demanded or supplied does not respond to price changes.",keys:["no response","price","fixed quantity","elasticity"]},
-  {word:"Planned Economy",zh:"计划经济",def:"An economic system where the government makes all major economic decisions.",keys:["government control","allocation","central planning","economy"]},
-  {word:"Price Elasticity of Supply",zh:"供给价格弹性",def:"A measure of the responsiveness of quantity supplied to a change in price.",keys:["responsiveness","quantity supplied","price change","elasticity"]},
-  {word:"Primary Sector",zh:"第一产业",def:"The sector of the economy involved in extracting natural resources.",keys:["extraction","natural resources","agriculture","mining"]},
-  {word:"Private Benefits",zh:"私人收益",def:"Benefits received directly by consumers or producers involved in a transaction.",keys:["direct","individual","benefits","market"]},
-  {word:"Private Costs",zh:"私人成本",def:"Costs directly incurred by producers or consumers in a transaction.",keys:["direct","costs","producers","consumers"]},
-  {word:"Private Goods",zh:"私人产品",def:"Goods that are both rival and excludable.",keys:["rival","excludable","private","consumption"]},
-  {word:"Production Possibility Curve",zh:"生产可能性曲线",def:"A curve showing the maximum combinations of goods that can be produced with given resources and technology.",keys:["maximum output","combinations","resources","trade-off"]},
-  {word:"Progressive Tax",zh:"累进税",def:"A tax system where the proportion of income paid in tax increases as income rises.",keys:["higher income","higher rate","tax","proportion"]},
-  {word:"Protectionism",zh:"贸易保护主义",def:"Government policies that restrict international trade to protect domestic industries.",keys:["restrict trade","domestic","tariffs","quotas"]},
-  {word:"Quota",zh:"配额",def:"A limit on the quantity of a good that can be imported.",keys:["limit","imports","restriction","trade"]},
-  {word:"Rationing",zh:"配给",def:"A system of limiting the consumption of certain goods.",keys:["limit consumption","control","shortage","allocation"]},
-  {word:"Reallocation of Resources",zh:"资源再配置",def:"The movement of resources from one use to another in response to changes in demand or supply.",keys:["movement","resources","change","allocation"]},
-  {word:"Regulation",zh:"监管",def:"Rules imposed by the government to control economic activity.",keys:["rules","government","control","market"]},
-  {word:"Resources",zh:"资源",def:"Inputs used in the production of goods and services.",keys:["inputs","production","factors","goods"]},
-  {word:"Risk",zh:"风险",def:"The possibility that actual outcomes will differ from expected outcomes.",keys:["uncertainty","outcome","difference","expectation"]},
-  {word:"Scale of Preference",zh:"偏好序",def:"A ranking of wants in order of importance.",keys:["ranking","wants","priority","choice"]},
-  {word:"Secondary Sector",zh:"第二产业",def:"The sector of the economy involved in manufacturing and processing goods.",keys:["manufacturing","processing","industry","production"]},
-  {word:"Social Costs",zh:"社会成本",def:"The total cost of an activity, including both private and external costs.",keys:["private","external","total cost","society"]},
-  {word:"Specialisation",zh:"专业化",def:"Concentrating on producing a narrow range of goods to increase efficiency.",keys:["focus","efficiency","production","advantage"]},
-  {word:"Specific Tax",zh:"从量税",def:"An indirect tax charged as a fixed amount per unit of a good.",keys:["fixed","per unit","tax","quantity"]},
-  {word:"Stocks",zh:"库存",def:"Goods that have been produced but not yet sold.",keys:["unsold","stored","goods","inventory"]},
-  {word:"Store of Wealth",zh:"价值储藏",def:"The function of money that allows it to retain value over time.",keys:["money","retain value","time","function"]},
-  {word:"Supply Curve",zh:"供给曲线",def:"A graph showing the relationship between price and quantity supplied.",keys:["graph","price","quantity","supply"]},
-  {word:"Supply-side Policies",zh:"供给侧政策",def:"Government policies aimed at increasing the productive capacity of the economy.",keys:["increase capacity","government","productivity","output"]},
-  {word:"Sustainable Development",zh:"可持续发展",def:"Development that meets present needs without compromising future generations' ability to meet their needs.",keys:["future","present","environment","balance"]},
-  {word:"Terms of Trade",zh:"贸易条件",def:"The ratio of export prices to import prices.",keys:["exports","imports","ratio","prices"]},
-  {word:"Tertiary Sector",zh:"第三产业",def:"The sector of the economy that provides services.",keys:["services","sector","economy","output"]},
-  {word:"Total Revenue",zh:"总收入",def:"The total income received from selling goods, calculated as price multiplied by quantity.",keys:["price","quantity","income","sales"]},
-  {word:"Trade Creation",zh:"贸易创造",def:"The replacement of higher-cost domestic production with lower-cost imports from member countries in a trade agreement.",keys:["lower cost","imports","efficiency","trade"]},
-  {word:"Trade Diversion",zh:"贸易转移",def:"The replacement of lower-cost imports from non-member countries with higher-cost imports from member countries.",keys:["higher cost","imports","inefficiency","trade"]},
-  {word:"Unanticipated Inflation",zh:"未预期通胀",def:"Inflation that occurs at a rate higher or lower than expected.",keys:["unexpected","inflation","difference","expectation"]},
-  {word:"Unitary Elasticity",zh:"单位弹性",def:"A situation where the percentage change in quantity equals the percentage change in price.",keys:["equal change","elasticity=1","price","quantity"]},
-  {word:"Value Judgement",zh:"价值判断",def:"A statement based on opinion rather than objective evidence.",keys:["opinion","subjective","belief","normative"]},
-  {word:"Weights",zh:"权重",def:"Values assigned to components in an index to reflect their relative importance.",keys:["importance","index","proportion","value"]},
-  {word:"Automatic Stabilisers",zh:"自动稳定器",def:"Fiscal mechanisms that reduce fluctuations in economic activity without deliberate intervention.",keys:["automatic","fiscal","stabilise","economy"]},
-  {word:"Balanced Budget",zh:"平衡预算",def:"A situation where government expenditure equals government revenue.",keys:["spending","revenue","equal","government"]},
-  {word:"Barriers to Entry",zh:"进入壁垒",def:"Factors that make it difficult for new firms to enter a market.",keys:["difficulty","entry","firms","market"]},
-  {word:"Circular Flow of Income",zh:"收入循环流动",def:"A model showing the flow of income and expenditure between households and firms.",keys:["flow","income","households","firms"]},
-  {word:"Closed Economy",zh:"封闭经济",def:"An economy that does not engage in international trade.",keys:["no trade","self-contained","economy","closed"]},
-  {word:"Credit Multiplier",zh:"信贷乘数",def:"The process by which banks create additional money through lending.",keys:["banks","lending","money creation","multiplier"]},
-  {word:"Cyclical Unemployment",zh:"周期性失业",def:"Unemployment caused by a fall in aggregate demand during an economic downturn.",keys:["recession","low demand","unemployment","cycle"]},
-  {word:"Deadweight Loss",zh:"无谓损失",def:"A loss of economic welfare that occurs when the allocation of resources is not efficient.",keys:["inefficiency","welfare loss","allocation","market"]},
-  {word:"Deflationary Gap",zh:"紧缩缺口",def:"A situation where aggregate demand is insufficient to achieve full employment output.",keys:["low demand","gap","unemployment","economy"]},
-  {word:"Derived Demand",zh:"引致需求",def:"Demand for a factor of production that arises from demand for the final good it helps produce.",keys:["factor demand","final goods","indirect","production"]},
-  {word:"Economies of Scale",zh:"规模经济",def:"Cost advantages gained by firms as output increases, leading to lower average costs.",keys:["lower cost","increase output","efficiency","scale"]},
-  {word:"Fiscal Policy",zh:"财政政策",def:"Government use of taxation and spending to influence the economy.",keys:["tax","spending","government","economy"]},
-  {word:"Fixed Costs",zh:"固定成本",def:"Costs that do not change with the level of output in the short run.",keys:["constant","output","short run","costs"]},
-  {word:"Variable Costs",zh:"可变成本",def:"Costs that change directly with the level of output.",keys:["change","output","production","costs"]},
-  {word:"Frictional Unemployment",zh:"摩擦性失业",def:"Short-term unemployment occurring when people are between jobs.",keys:["temporary","job search","short-term","labour"]},
-  {word:"Full Employment",zh:"充分就业",def:"A situation where all those willing and able to work can find employment, except for frictional unemployment.",keys:["maximum employment","labour","jobs","economy"]},
-  {word:"Government Failure",zh:"政府失灵",def:"When government intervention leads to a misallocation of resources and reduces economic welfare.",keys:["intervention","inefficiency","allocation","welfare"]},
-  {word:"Gross Domestic Product (GDP)",zh:"国内生产总值",def:"The total value of all final goods and services produced within a country over a period of time.",keys:["total output","final goods","country","period"]},
-  {word:"GDP Deflator",zh:"GDP平减指数",def:"A measure of the price level of all domestically produced goods and services in an economy.",keys:["price level","inflation","GDP","index"]},
-  {word:"Gross National Product (GNP)",zh:"国民生产总值",def:"The total value of goods and services produced by a country's residents, including income from abroad.",keys:["national output","income abroad","residents","total"]},
-  {word:"Immobility of Labour",zh:"劳动力不可流动性",def:"Barriers that prevent workers from moving between jobs or locations.",keys:["barriers","movement","labour","jobs"]},
-  {word:"Income Effect",zh:"收入效应",def:"The change in quantity demanded resulting from a change in real income due to a price change.",keys:["real income","price change","demand","effect"]},
-  {word:"Income Tax",zh:"所得税",def:"A direct tax on income earned by individuals or firms.",keys:["direct tax","income","government","earnings"]},
-  {word:"Increasing Returns",zh:"规模报酬递增",def:"A situation where output increases by a greater proportion than inputs.",keys:["output rises more","inputs","efficiency","scale"]},
-  {word:"Induced Investment",zh:"引致投资",def:"Investment that depends on the level of income or output in the economy.",keys:["income dependent","investment","output","economy"]},
-  {word:"Industry",zh:"行业",def:"A group of firms producing similar or related goods and services.",keys:["firms","similar goods","market","production"]},
-  {word:"Injections",zh:"注入",def:"Additions to the circular flow of income, such as investment, government spending, and exports.",keys:["increase flow","investment","government","exports"]},
-  {word:"Internal Economies of Scale",zh:"内部规模经济",def:"Cost advantages gained by a firm as it increases its own scale of production.",keys:["firm level","lower costs","scale","efficiency"]},
-  {word:"Keynesian",zh:"凯恩斯主义",def:"An economic theory that emphasises the role of aggregate demand and government intervention in stabilising the economy.",keys:["aggregate demand","government","intervention","theory"]},
-  {word:"Leakages",zh:"漏出",def:"Withdrawals from the circular flow of income, such as savings, taxes, and imports.",keys:["withdrawal","flow","savings","taxes"]},
-  {word:"Liquidity Trap",zh:"流动性陷阱",def:"A situation where low interest rates fail to stimulate borrowing and spending.",keys:["low interest","no spending","ineffective policy","economy"]},
-  {word:"Long Run",zh:"长期",def:"A period of time in which all factors of production can be varied.",keys:["all factors","adjustment","time period","production"]},
-  {word:"Managed Float",zh:"有管理浮动汇率",def:"An exchange rate system where the currency is allowed to fluctuate but with occasional government intervention.",keys:["partly controlled","currency","intervention","market"]},
-  {word:"Marginal Cost",zh:"边际成本",def:"The additional cost of producing one more unit of output.",keys:["extra cost","one unit","output","production"]},
-  {word:"Marginal Product",zh:"边际产量",def:"The additional output produced by employing one more unit of a factor of production.",keys:["extra output","factor","labour","production"]},
-  {word:"Marginal Propensity to Consume",zh:"边际消费倾向",def:"The proportion of additional income that is spent on consumption.",keys:["extra income","consumption","ratio","spending"]},
-  {word:"Marginal Propensity to Save",zh:"边际储蓄倾向",def:"The proportion of additional income that is saved.",keys:["extra income","saving","ratio","withdrawal"]},
-  {word:"Marginal Revenue",zh:"边际收益",def:"The additional revenue gained from selling one more unit of output.",keys:["extra revenue","sales","one unit","firm"]},
-  {word:"Marginal Revenue Product",zh:"边际收益产品",def:"The additional revenue generated by employing one more unit of labour.",keys:["labour","extra revenue","employment","firm"]},
-  {word:"Mobility of Labour",zh:"劳动力流动性",def:"The ease with which workers can move between jobs or geographical areas.",keys:["movement","jobs","location","labour"]},
-  {word:"Monetary Policy",zh:"货币政策",def:"Actions by a central bank to control interest rates or money supply to influence the economy.",keys:["interest rates","money supply","central bank","policy"]},
-  {word:"Monetarist",zh:"货币主义者",def:"An economist who believes controlling the money supply is key to managing the economy.",keys:["money supply","control","inflation","theory"]},
-  {word:"Monopolistic Competition",zh:"垄断竞争",def:"A market structure with many firms selling differentiated products and low barriers to entry.",keys:["many firms","differentiation","low barriers","market"]},
-  {word:"Net Domestic Product (NDP)",zh:"国内生产净值",def:"GDP minus depreciation of capital goods.",keys:["GDP","depreciation","net","output"]},
-  {word:"Net National Product (NNP)",zh:"国民生产净值",def:"GNP minus depreciation of capital goods.",keys:["GNP","depreciation","net","output"]},
-  {word:"Occupational Mobility",zh:"职业流动性",def:"The ability of workers to change jobs or occupations.",keys:["job change","skills","labour","movement"]},
-  {word:"Open Economy",zh:"开放经济",def:"An economy that engages in international trade.",keys:["trade","imports","exports","global"]},
-  {word:"Optimum Allocation of Resources",zh:"资源最优配置",def:"A situation where resources are used in the most efficient way to maximise welfare.",keys:["efficiency","allocation","resources","welfare"]},
-  {word:"Paradox of Thrift",zh:"节俭悖论",def:"An increase in saving may lead to a fall in aggregate demand and overall economic output.",keys:["saving","low demand","output","paradox"]},
-  {word:"Privatisation",zh:"私有化",def:"The transfer of ownership of a business from the public sector to the private sector.",keys:["ownership","private","government","firms"]},
-  {word:"Profit",zh:"利润",def:"The difference between total revenue and total costs.",keys:["revenue","costs","difference","firm"]},
-  {word:"Regressive Taxation",zh:"累退税制",def:"A tax system where lower-income earners pay a higher proportion of their income in tax.",keys:["low income","higher burden","tax","proportion"]},
-  {word:"Saving",zh:"储蓄",def:"The portion of income that is not spent on consumption.",keys:["income","not spent","withdrawal","saving"]},
-  {word:"Seasonal Unemployment",zh:"季节性失业",def:"Unemployment that occurs at certain times of the year due to seasonal changes in demand.",keys:["seasonal","temporary","jobs","demand"]},
-  {word:"Short Run",zh:"短期",def:"A period of time in which at least one factor of production is fixed.",keys:["fixed factor","time period","production","short"]},
-  {word:"Speculative Motive",zh:"投机动机",def:"Holding money in anticipation of changes in interest rates or asset prices.",keys:["anticipation","interest rates","money","speculation"]},
-  {word:"Structural Unemployment",zh:"结构性失业",def:"Unemployment caused by a mismatch between workers' skills and job requirements.",keys:["skills mismatch","labour","jobs","structure"]},
-  {word:"Technological Unemployment",zh:"技术性失业",def:"Unemployment caused by the replacement of labour with machines.",keys:["automation","machines","labour","replacement"]},
-  {word:"Voluntary Unemployment",zh:"自愿失业",def:"When individuals choose not to work at the current wage rate.",keys:["choice","wage","labour","unemployment"]},
-  {word:"Withdrawals",zh:"漏出",def:"Another term for leakages, referring to money leaving the circular flow of income.",keys:["leakages","flow","withdrawal","economy"]}
+{word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
+{word:"Ad Valorem Tax",zh:"从价税",def:"An indirect tax charged as a percentage of the value of a good or service.",keys:["percentage","value","indirect tax","price"]},
+{word:"Adam Smith",zh:"亚当·斯密",def:"An economist who developed the theory of free markets and the division of labour.",keys:["free market","division of labour","economist","theory"]},
+{word:"Adverse Selection",zh:"逆向选择",def:"A situation arising from asymmetric information where higher-risk individuals are more likely to participate in a transaction.",keys:["asymmetric information","high risk","market failure","information"]},
+{word:"Withdrawals",zh:"漏出",def:"Another term for leakages, referring to money leaving the circular flow of income.",keys:["leakages","flow","withdrawal","economy"]}
+];
 
 let xp=0,streak=0,mastered=[],currentIndex=0;
 
@@ -508,212 +336,3 @@ function saveState(){
 }
 
 function init(){
-  loadState();
-  // FIXED NAME CHECK: Prompt if studentName is null, empty, or exactly "Anonymous"
-  if(!studentName || studentName === "" || studentName === "null" || studentName === "Anonymous") {
-    studentName = prompt("Enter your name for the leaderboard / 输入你的名字:");
-    if(!studentName || studentName.trim() === "") studentName = "Anonymous";
-    localStorage.setItem('ec_name', studentName);
-  }
-  buildList();
-  goTo(0);
-  updateStats();
-  refreshLeaderboard();
-}
-
-// NEW SYNC FUNCTION
-async function syncXP() {
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify({ name: studentName, xp: xp })
-    });
-    setTimeout(refreshLeaderboard, 2500);
-  } catch(e) { console.error("Sync Error"); }
-}
-
-// NEW REFRESH FUNCTION
-async function refreshLeaderboard() {
-  const lb = document.getElementById('lb-list');
-  try {
-    const res = await fetch(SCRIPT_URL);
-    const data = await res.json();
-    
-    let scores = {};
-    data.slice(1).forEach(row => {
-      let name = row[1], val = parseInt(row[2]);
-      if (!scores[name] || val > scores[name]) scores[name] = val;
-    });
-
-    let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]).slice(0, 15);
-    lb.innerHTML = sorted.map((s, i) => `
-      <div class="lb-item">
-        <span>${i+1}. ${s[0]}</span>
-        <span style="color:var(--gold)">${s[1]} XP</span>
-      </div>
-    `).join('');
-  } catch(e) { lb.innerHTML = "Offline leaderboard."; }
-}
-
-// DROPDOWN TOGGLE FUNCTION
-function toggleLeaderboard() {
-  const lb = document.getElementById('lb-list');
-  const arrow = document.getElementById('lb-arrow');
-  lb.classList.toggle('open');
-  arrow.textContent = lb.classList.contains('open') ? '▲' : '▼';
-}
-
-function buildList(){
-  const list=document.getElementById('word-list');
-  list.innerHTML='';
-  vocab.forEach((item,i)=>{
-    const d=document.createElement('div');
-    d.className='li'+(mastered.includes(item.word)?' done':'');
-    d.id='li'+i;
-    d.innerHTML='<span>'+item.word+'</span><div class="dot"></div>';
-    d.onclick=()=>{goTo(i);if(window.innerWidth<820)closeSidebar();};
-    list.appendChild(d);
-  });
-  updateProgress();
-}
-
-function filterWords(q){
-  const ql=q.toLowerCase();
-  vocab.forEach((item,i)=>{
-    const el=document.getElementById('li' + i);
-    if(el) el.style.display=(item.word.toLowerCase().includes(ql)||item.zh.includes(q))?'':'none';
-  });
-}
-
-function goTo(idx){
-  if(idx<0||idx>=vocab.length)return;
-  currentIndex=idx;
-  const item=vocab[idx];
-  document.querySelectorAll('.li').forEach(e=>e.classList.remove('active'));
-  const li=document.getElementById('li'+idx);
-  if(li){li.classList.add('active');li.scrollIntoView({behavior:'smooth',block:'nearest'});}
-
-  document.getElementById('w-title').textContent=item.word;
-  document.getElementById('w-zh').textContent=item.zh;
-  document.getElementById('w-counter').textContent=(idx+1)+' / '+vocab.length;
-
-  const ktRow=document.getElementById('kt-row');
-  const ktSpan=document.getElementById('kt-tags');
-  if(item.keys&&item.keys.length){
-    ktSpan.innerHTML=item.keys.map(k=>'<span class="kt">'+k+'</span>').join(' ');
-    ktRow.style.display='flex';
-  } else { ktRow.style.display='none'; }
-
-  document.getElementById('user-input').value='';
-  showQ();
-  document.getElementById('btn-prev').disabled=(idx===0);
-  document.getElementById('btn-next').disabled=(idx===vocab.length-1);
-}
-
-function showQ(){
-  document.getElementById('quiz-ui').style.display='block';
-  document.getElementById('grading-zone').style.display='none';
-}
-
-function revealDef(){
-  const userIn=document.getElementById('user-input').value.trim();
-  const item=vocab[currentIndex];
-  document.getElementById('g-title').textContent=item.word;
-  document.getElementById('g-zh').textContent=item.zh;
-  document.getElementById('your-answer').textContent=userIn||'(no answer · 未填写)';
-
-  const low=userIn.toLowerCase();
-  let html=item.def;
-  (item.keys||[]).forEach(k=>{
-    const m=low.includes(k.toLowerCase());
-    const cls=m?'kw-hit':'kw-miss';
-    const esc=k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    html=html.replace(new RegExp('('+esc+')','gi'),'<span class="'+cls+'">$1</span>');
-  });
-  document.getElementById('off-def').innerHTML=html;
-
-  const keys=item.keys||[];
-  const pct=keys.length?Math.round((keys.filter(k=>low.includes(k.toLowerCase())).length/keys.length)*100):100;
-  const fill=document.getElementById('cov-fill');
-  const pctEl=document.getElementById('cov-pct');
-  pctEl.textContent=pct+'%';
-  fill.style.width=pct+'%';
-  const color=pct>=70?'var(--green)':pct>=40?'var(--gold)':'var(--red)';
-  fill.style.background=color;
-  pctEl.style.color=color;
-  
-  document.getElementById('quiz-ui').style.display='none';
-  document.getElementById('grading-zone').style.display='block';
-}
-
-function handleScore(correct){
-  const item=vocab[currentIndex];
-  if(correct){
-    streak++; xp+=20;
-    if(!mastered.includes(item.word)){
-      mastered.push(item.word);
-      const li=document.getElementById('li'+currentIndex);
-      if(li){li.classList.add('done');li.querySelector('.dot').style.background='var(--green)';}
-      syncXP();
-    }
-    confetti({particleCount:110,spread:65,origin:{y:.7},colors:['#00e5ff','#00ff88','#ffd700']});
-  } else {
-    streak=0;
-  }
-  saveState(); updateStats(); updateProgress();
-  if(currentIndex<vocab.length-1){ setTimeout(()=>goTo(currentIndex+1),600); } 
-  else { setTimeout(showDone,700); }
-}
-
-function backToInput(){ showQ(); }
-
-function updateStats(){
-  document.getElementById('x-val').textContent=xp;
-  document.getElementById('s-val').textContent=streak;
-  const ranks=[[0,'NOVICE ECONOMIST'],[200,'MARKET ANALYST'],[600,'POLICY ADVISOR'],[1200,'CENTRAL BANK GOVERNOR'],[2500,'GLOBAL ECONOMIC LEGEND']];
-  let rank=ranks[0][1];
-  for(const[t,l] of ranks){if(xp>=t)rank=l;}
-  document.getElementById('rank-lbl').textContent=rank;
-}
-
-function updateProgress(){
-  const done=mastered.length,total=vocab.length;
-  document.getElementById('prog-fill').style.width=(total?(done/total*100):0)+'%';
-  document.getElementById('prog-text').textContent=done+' / '+total;
-}
-
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');}
-function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-
-function confirmReset(){
-  xp=0;streak=0;mastered=[];
-  localStorage.removeItem('ec_name');
-  saveState();buildList();goTo(0);updateStats();
-  closeModal('m-reset');
-  location.reload();
-}
-
-function showDone(){
-  openModal('m-done');
-  confetti({particleCount:300,spread:120,origin:{y:.5}});
-}
-
-function startOver(){
-  mastered=[];saveState();buildList();goTo(0);updateStats();
-  closeModal('m-done');
-}
-
-document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;
-  if(e.key==='ArrowRight')goTo(currentIndex+1);
-  if(e.key==='ArrowLeft')goTo(currentIndex-1);
-  if(e.key==='Enter'&&document.getElementById('grading-zone').style.display!=='block')revealDef();
-});
-
-window.onload=init;
-</script>
-</body>
-</html>
