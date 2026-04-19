@@ -286,12 +286,12 @@ textarea::placeholder { color: var(--muted); font-size: .86rem; }
 </div>
 
 <script>
-// --- LEADERBOARD CONFIG ---
+// ─── CONFIG ───────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbys8Z1NnytOFPE6wgbj_LagCmhkWM0gd5njwYbZ8jbnWE6yVsy-caPvx2xnJPuWbGYK/exec";
-let studentName = "";
 
-const vocab=[
-{word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
+// ─── VOCAB DATA ───────────────────────────────────────────
+const vocab = [
+  {word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
 {word:"Ad Valorem Tax",zh:"从价税",def:"An indirect tax charged as a percentage of the value of a good or service.",keys:["percentage","value","indirect tax","price"]},
 {word:"Adam Smith",zh:"亚当·斯密",def:"An economist who developed the theory of free markets and the division of labour.",keys:["free market","division of labour","economist","theory"]},
 {word:"Adverse Selection",zh:"逆向选择",def:"A situation arising from asymmetric information where higher-risk individuals are more likely to participate in a transaction.",keys:["asymmetric information","high risk","market failure","information"]},
@@ -491,28 +491,252 @@ const vocab=[
 {word:"Withdrawals",zh:"漏出",def:"Another term for leakages, referring to money leaving the circular flow of income.",keys:["leakages","flow","withdrawal","economy"]}
 ];
 
-let xp=0,streak=0,mastered=[],currentIndex=0;
+// ─── STATE ────────────────────────────────────────────────
+let xp = 0, streak = 0, mastered = [], currentIndex = 0, studentName = "";
 
-function loadState(){
-  try{
-    xp=parseInt(localStorage.getItem('ec_xp'))||0;
-    streak=parseInt(localStorage.getItem('ec_str'))||0;
-    mastered=JSON.parse(localStorage.getItem('ec_mst'))||[];
-    studentName=localStorage.getItem('ec_name');
-  }catch(e){xp=0;streak=0;mastered=[];}
+// ─── PERSISTENCE ──────────────────────────────────────────
+function loadState() {
+  try {
+    xp       = parseInt(localStorage.getItem('ec_xp'))  || 0;
+    streak   = parseInt(localStorage.getItem('ec_str')) || 0;
+    mastered = JSON.parse(localStorage.getItem('ec_mst')) || [];
+    studentName = localStorage.getItem('ec_name') || "";
+  } catch(e) { xp = 0; streak = 0; mastered = []; }
 }
 
-function saveState(){
-  localStorage.setItem('ec_xp',xp);
-  localStorage.setItem('ec_str',streak);
-  localStorage.setItem('ec_mst',JSON.stringify(mastered));
+function saveState() {
+  localStorage.setItem('ec_xp',  xp);
+  localStorage.setItem('ec_str', streak);
+  localStorage.setItem('ec_mst', JSON.stringify(mastered));
 }
 
-function init(){
+// ─── GOOGLE SHEETS SYNC ───────────────────────────────────
+// FIX: removed mode:'no-cors' and use Content-Type:'text/plain'
+// so the request body reaches Apps Script intact.
+async function syncXP() {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ name: studentName, xp: xp })
+    });
+    setTimeout(refreshLeaderboard, 2500);
+  } catch(e) { console.error("Sync Error", e); }
+}
+
+async function refreshLeaderboard() {
+  const lb = document.getElementById('lb-list');
+  try {
+    const res  = await fetch(SCRIPT_URL);
+    const data = await res.json();
+
+    let scores = {};
+    data.slice(1).forEach(row => {
+      let name = row[1], val = parseInt(row[2]);
+      if (!scores[name] || val > scores[name]) scores[name] = val;
+    });
+
+    let sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 15);
+    lb.innerHTML = sorted.map((s, i) => `
+      <div class="lb-item">
+        <span>${i + 1}. ${s[0]}</span>
+        <span style="color:var(--gold)">${s[1]} XP</span>
+      </div>
+    `).join('');
+  } catch(e) { lb.innerHTML = "<div style='padding:6px 0;font-size:.7rem;color:var(--muted)'>Offline</div>"; }
+}
+
+// ─── LEADERBOARD TOGGLE ───────────────────────────────────
+function toggleLeaderboard() {
+  const lb    = document.getElementById('lb-list');
+  const arrow = document.getElementById('lb-arrow');
+  lb.classList.toggle('open');
+  arrow.textContent = lb.classList.contains('open') ? '▲' : '▼';
+}
+
+// ─── SIDEBAR LIST ─────────────────────────────────────────
+function buildList() {
+  const list = document.getElementById('word-list');
+  list.innerHTML = '';
+  vocab.forEach((item, i) => {
+    const d = document.createElement('div');
+    d.className = 'li' + (mastered.includes(item.word) ? ' done' : '');
+    d.id = 'li' + i;
+    d.innerHTML = '<span>' + item.word + '</span><div class="dot"></div>';
+    d.onclick = () => { goTo(i); if (window.innerWidth < 820) closeSidebar(); };
+    list.appendChild(d);
+  });
+  updateProgress();
+}
+
+function filterWords(q) {
+  const ql = q.toLowerCase();
+  vocab.forEach((item, i) => {
+    const el = document.getElementById('li' + i);
+    if (el) el.style.display = (item.word.toLowerCase().includes(ql) || item.zh.includes(q)) ? '' : 'none';
+  });
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────
+function goTo(idx) {
+  if (idx < 0 || idx >= vocab.length) return;
+  syncXP();
+  currentIndex = idx;
+  const item = vocab[idx];
+
+  document.querySelectorAll('.li').forEach(e => e.classList.remove('active'));
+  const li = document.getElementById('li' + idx);
+  if (li) { li.classList.add('active'); li.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+  document.getElementById('w-title').textContent   = item.word;
+  document.getElementById('w-zh').textContent      = item.zh;
+  document.getElementById('w-counter').textContent = (idx + 1) + ' / ' + vocab.length;
+
+  const ktRow  = document.getElementById('kt-row');
+  const ktSpan = document.getElementById('kt-tags');
+  if (item.keys && item.keys.length) {
+    ktSpan.innerHTML  = item.keys.map(k => '<span class="kt">' + k + '</span>').join(' ');
+    ktRow.style.display = 'flex';
+  } else { ktRow.style.display = 'none'; }
+
+  document.getElementById('user-input').value = '';
+  showQ();
+  document.getElementById('btn-prev').disabled = (idx === 0);
+  document.getElementById('btn-next').disabled = (idx === vocab.length - 1);
+}
+
+function showQ() {
+  document.getElementById('quiz-ui').style.display     = 'block';
+  document.getElementById('grading-zone').style.display = 'none';
+}
+
+// ─── REVEAL & GRADE ───────────────────────────────────────
+function revealDef() {
+  const userIn = document.getElementById('user-input').value.trim();
+  const item   = vocab[currentIndex];
+
+  document.getElementById('g-title').textContent = item.word;
+  document.getElementById('g-zh').textContent    = item.zh;
+  document.getElementById('your-answer').textContent = userIn || '(no answer · 未填写)';
+
+  const low  = userIn.toLowerCase();
+  let   html = item.def;
+  (item.keys || []).forEach(k => {
+    const m   = low.includes(k.toLowerCase());
+    const cls = m ? 'kw-hit' : 'kw-miss';
+    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    html = html.replace(new RegExp('(' + esc + ')', 'gi'), '<span class="' + cls + '">$1</span>');
+  });
+  document.getElementById('off-def').innerHTML = html;
+
+  const keys = item.keys || [];
+  const pct  = keys.length
+    ? Math.round((keys.filter(k => low.includes(k.toLowerCase())).length / keys.length) * 100)
+    : 100;
+
+  const fill  = document.getElementById('cov-fill');
+  const pctEl = document.getElementById('cov-pct');
+  pctEl.textContent = pct + '%';
+  fill.style.width  = pct + '%';
+  const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--gold)' : 'var(--red)';
+  fill.style.background = color;
+  pctEl.style.color     = color;
+
+  document.getElementById('quiz-ui').style.display      = 'none';
+  document.getElementById('grading-zone').style.display = 'block';
+}
+
+function handleScore(correct) {
+  const item = vocab[currentIndex];
+  if (correct) {
+    streak++;
+    xp += 20;
+    if (!mastered.includes(item.word)) {
+      mastered.push(item.word);
+      const li = document.getElementById('li' + currentIndex);
+      if (li) {
+        li.classList.add('done');
+        li.querySelector('.dot').style.background = 'var(--green)';
+      }
+    }
+    confetti({ particleCount: 110, spread: 65, origin: { y: .7 }, colors: ['#00e5ff','#00ff88','#ffd700'] });
+  } else {
+    streak = 0;
+  }
+
+  syncXP();
+  saveState();
+  updateStats();
+  updateProgress();
+
+  if (currentIndex < vocab.length - 1) {
+    setTimeout(() => goTo(currentIndex + 1), 600);
+  } else {
+    setTimeout(showDone, 700);
+  }
+}
+
+function backToInput() { showQ(); }
+
+// ─── UI HELPERS ───────────────────────────────────────────
+function updateStats() {
+  document.getElementById('x-val').textContent = xp;
+  document.getElementById('s-val').textContent = streak;
+  const ranks = [
+    [0,    'NOVICE ECONOMIST · 经济学新手'],
+    [200,  'MARKET ANALYST · 市场分析师'],
+    [600,  'POLICY ADVISOR · 政策顾问'],
+    [1200, 'CENTRAL BANK GOVERNOR · 央行行长'],
+    [2500, 'GLOBAL ECONOMIC LEGEND · 经济学传奇']
+  ];
+  let rank = ranks[0][1];
+  for (const [t, l] of ranks) { if (xp >= t) rank = l; }
+  document.getElementById('rank-lbl').textContent = rank;
+}
+
+function updateProgress() {
+  const done = mastered.length, total = vocab.length;
+  document.getElementById('prog-fill').style.width = (total ? (done / total * 100) : 0) + '%';
+  document.getElementById('prog-text').textContent = done + ' / ' + total;
+}
+
+function toggleSidebar()  { document.getElementById('sidebar').classList.toggle('open'); }
+function closeSidebar()   { document.getElementById('sidebar').classList.remove('open'); }
+function openModal(id)    { document.getElementById(id).classList.add('open'); }
+function closeModal(id)   { document.getElementById(id).classList.remove('open'); }
+
+function confirmReset() {
+  xp = 0; streak = 0; mastered = [];
+  localStorage.removeItem('ec_name');
+  saveState(); buildList(); goTo(0); updateStats();
+  closeModal('m-reset');
+  location.reload();
+}
+
+function showDone() {
+  openModal('m-done');
+  confetti({ particleCount: 300, spread: 120, origin: { y: .5 } });
+}
+
+function startOver() {
+  mastered = []; saveState(); buildList(); goTo(0); updateStats();
+  closeModal('m-done');
+}
+
+// ─── KEYBOARD SHORTCUTS ───────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight') goTo(currentIndex + 1);
+  if (e.key === 'ArrowLeft')  goTo(currentIndex - 1);
+  if (e.key === 'Enter' && document.getElementById('grading-zone').style.display !== 'block') revealDef();
+});
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
   loadState();
-  if(!studentName) {
+  if (!studentName) {
     studentName = prompt("Enter your name for the leaderboard / 输入你的名字:");
-    if(!studentName) studentName = "Anonymous";
+    if (!studentName) studentName = "Anonymous";
     localStorage.setItem('ec_name', studentName);
   }
   buildList();
@@ -521,217 +745,7 @@ function init(){
   refreshLeaderboard();
 }
 
-// NEW SYNC FUNCTION
-async function syncXP() {
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify({ name: studentName, xp: xp })
-    });
-    setTimeout(refreshLeaderboard, 2500);
-  } catch(e) { console.error("Sync Error"); }
-}
-
-// NEW REFRESH FUNCTION
-async function refreshLeaderboard() {
-  const lb = document.getElementById('lb-list');
-  try {
-    const res = await fetch(SCRIPT_URL);
-    const data = await res.json();
-    
-    let scores = {};
-    data.slice(1).forEach(row => {
-      let name = row[1], val = parseInt(row[2]);
-      if (!scores[name] || val > scores[name]) scores[name] = val;
-    });
-
-    let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]).slice(0, 15);
-    lb.innerHTML = sorted.map((s, i) => `
-      <div class="lb-item">
-        <span>${i+1}. ${s[0]}</span>
-        <span style="color:var(--gold)">${s[1]} XP</span>
-      </div>
-    `).join('');
-  } catch(e) { lb.innerHTML = "Offline leaderboard."; }
-}
-
-// DROPDOWN TOGGLE FUNCTION
-function toggleLeaderboard() {
-  const lb = document.getElementById('lb-list');
-  const arrow = document.getElementById('lb-arrow');
-  lb.classList.toggle('open');
-  arrow.textContent = lb.classList.contains('open') ? '▲' : '▼';
-}
-
-function buildList(){
-  const list=document.getElementById('word-list');
-  list.innerHTML='';
-  vocab.forEach((item,i)=>{
-    const d=document.createElement('div');
-    d.className='li'+(mastered.includes(item.word)?' done':'');
-    d.id='li'+i;
-    d.innerHTML='<span>'+item.word+'</span><div class="dot"></div>';
-    d.onclick=()=>{goTo(i);if(window.innerWidth<820)closeSidebar();};
-    list.appendChild(d);
-  });
-  updateProgress();
-}
-
-function filterWords(q){
-  const ql=q.toLowerCase();
-  vocab.forEach((item,i)=>{
-    const el=document.getElementById('li' + i);
-    if(el) el.style.display=(item.word.toLowerCase().includes(ql)||item.zh.includes(q))?'':'none';
-  });
-}
-
-function goTo(idx){
-  if(idx<0||idx>=vocab.length)return;
-  // Sync XP whenever the user moves between questions
-  syncXP();
-  currentIndex=idx;
-  const item=vocab[idx];
-  document.querySelectorAll('.li').forEach(e=>e.classList.remove('active'));
-  const li=document.getElementById('li'+idx);
-  if(li){li.classList.add('active');li.scrollIntoView({behavior:'smooth',block:'nearest'});}
-
-  document.getElementById('w-title').textContent=item.word;
-  document.getElementById('w-zh').textContent=item.zh;
-  document.getElementById('w-counter').textContent=(idx+1)+' / '+vocab.length;
-
-  const ktRow=document.getElementById('kt-row');
-  const ktSpan=document.getElementById('kt-tags');
-  if(item.keys&&item.keys.length){
-    ktSpan.innerHTML=item.keys.map(k=>'<span class="kt">'+k+'</span>').join(' ');
-    ktRow.style.display='flex';
-  } else { ktRow.style.display='none'; }
-
-  document.getElementById('user-input').value='';
-  showQ();
-  document.getElementById('btn-prev').disabled=(idx===0);
-  document.getElementById('btn-next').disabled=(idx===vocab.length-1);
-}
-
-function showQ(){
-  document.getElementById('quiz-ui').style.display='block';
-  document.getElementById('grading-zone').style.display='none';
-}
-
-function revealDef(){
-  const userIn=document.getElementById('user-input').value.trim();
-  const item=vocab[currentIndex];
-  document.getElementById('g-title').textContent=item.word;
-  document.getElementById('g-zh').textContent=item.zh;
-  document.getElementById('your-answer').textContent=userIn||'(no answer · 未填写)';
-
-  const low=userIn.toLowerCase();
-  let html=item.def;
-  (item.keys||[]).forEach(k=>{
-    const m=low.includes(k.toLowerCase());
-    const cls=m?'kw-hit':'kw-miss';
-    const esc=k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    html=html.replace(new RegExp('('+esc+')','gi'),'<span class="'+cls+'">$1</span>');
-  });
-  document.getElementById('off-def').innerHTML=html;
-
-  const keys=item.keys||[];
-  const pct=keys.length?Math.round((keys.filter(k=>low.includes(k.toLowerCase())).length/keys.length)*100):100;
-  const fill=document.getElementById('cov-fill');
-  const pctEl=document.getElementById('cov-pct');
-  pctEl.textContent=pct+'%';
-  fill.style.width=pct+'%';
-  const color=pct>=70?'var(--green)':pct>=40?'var(--gold)':'var(--red)';
-  fill.style.background=color;
-  pctEl.style.color=color;
-  
-  document.getElementById('quiz-ui').style.display='none';
-  document.getElementById('grading-zone').style.display='block';
-}
-
-function handleScore(correct){
-  const item = vocab[currentIndex];
-  
-  if(correct){
-    streak++; 
-    xp += 20;
-    if(!mastered.includes(item.word)){
-      mastered.push(item.word);
-      const li = document.getElementById('li'+currentIndex);
-      if(li){
-        li.classList.add('done');
-        li.querySelector('.dot').style.background='var(--green)';
-      }
-    }
-    confetti({particleCount:110,spread:65,origin:{y:.7},colors:['#00e5ff','#00ff88','#ffd700']});
-  } else {
-    streak = 0;
-  }
-
-  // --- THE FIX ---
-  // We moved syncXP() here so it runs every time a button is clicked,
-  // ensuring the Google Sheet always has the latest XP.
-  syncXP(); 
-
-  saveState(); 
-  updateStats(); 
-  updateProgress();
-
-  if(currentIndex < vocab.length - 1){ 
-    setTimeout(() => goTo(currentIndex + 1), 600); 
-  } else { 
-    setTimeout(showDone, 700); 
-  }
-}
-
-function backToInput(){ showQ(); }
-
-function updateStats(){
-  document.getElementById('x-val').textContent=xp;
-  document.getElementById('s-val').textContent=streak;
-  const ranks=[[0,'NOVICE ECONOMIST'],[200,'MARKET ANALYST'],[600,'POLICY ADVISOR'],[1200,'CENTRAL BANK GOVERNOR'],[2500,'GLOBAL ECONOMIC LEGEND']];
-  let rank=ranks[0][1];
-  for(const[t,l] of ranks){if(xp>=t)rank=l;}
-  document.getElementById('rank-lbl').textContent=rank;
-}
-
-function updateProgress(){
-  const done=mastered.length,total=vocab.length;
-  document.getElementById('prog-fill').style.width=(total?(done/total*100):0)+'%';
-  document.getElementById('prog-text').textContent=done+' / '+total;
-}
-
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');}
-function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-
-function confirmReset(){
-  xp=0;streak=0;mastered=[];
-  localStorage.removeItem('ec_name');
-  saveState();buildList();goTo(0);updateStats();
-  closeModal('m-reset');
-  location.reload();
-}
-
-function showDone(){
-  openModal('m-done');
-  confetti({particleCount:300,spread:120,origin:{y:.5}});
-}
-
-function startOver(){
-  mastered=[];saveState();buildList();goTo(0);updateStats();
-  closeModal('m-done');
-}
-
-document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;
-  if(e.key==='ArrowRight')goTo(currentIndex+1);
-  if(e.key==='ArrowLeft')goTo(currentIndex-1);
-  if(e.key==='Enter'&&document.getElementById('grading-zone').style.display!=='block')revealDef();
-});
-
-window.onload=init;
+window.onload = init;
 </script>
 </body>
 </html>
