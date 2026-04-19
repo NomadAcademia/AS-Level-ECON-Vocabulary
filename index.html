@@ -58,8 +58,8 @@ body::before {
 
 /* --- DROPDOWN LEADERBOARD CSS --- */
 #leaderboard-zone {
-  margin: 10px; background: rgba(255,255,255,0.03); 
-  border: 1px solid var(--bdr); border-radius: 12px; 
+  margin: 10px; background: rgba(255,255,255,0.03);
+  border: 1px solid var(--bdr); border-radius: 12px;
   flex-shrink: 0; overflow: hidden;
 }
 .lb-header {
@@ -68,8 +68,8 @@ body::before {
 }
 .lb-title { font-size: .55rem; font-weight: 800; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; }
 
-#lb-list { 
-  max-height: 0; overflow-y: auto; transition: max-height 0.3s ease-out; padding: 0 10px; 
+#lb-list {
+  max-height: 0; overflow-y: auto; transition: max-height 0.3s ease-out; padding: 0 10px;
 }
 #lb-list.open {
   max-height: 180px; padding: 0 10px 10px 10px;
@@ -291,7 +291,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbys8Z1NnytOFPE6wgbj_
 
 // ─── VOCAB DATA ───────────────────────────────────────────
 const vocab = [
-  {word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
+{word:"Absolute Advantage",zh:"绝对优势",def:"The ability of a country to produce more of a good than another country using the same quantity of resources.",keys:["produce more","same resources","country","efficiency"]},
 {word:"Ad Valorem Tax",zh:"从价税",def:"An indirect tax charged as a percentage of the value of a good or service.",keys:["percentage","value","indirect tax","price"]},
 {word:"Adam Smith",zh:"亚当·斯密",def:"An economist who developed the theory of free markets and the division of labour.",keys:["free market","division of labour","economist","theory"]},
 {word:"Adverse Selection",zh:"逆向选择",def:"A situation arising from asymmetric information where higher-risk individuals are more likely to participate in a transaction.",keys:["asymmetric information","high risk","market failure","information"]},
@@ -497,10 +497,10 @@ let xp = 0, streak = 0, mastered = [], currentIndex = 0, studentName = "";
 // ─── PERSISTENCE ──────────────────────────────────────────
 function loadState() {
   try {
-    xp       = parseInt(localStorage.getItem('ec_xp'))  || 0;
-    streak   = parseInt(localStorage.getItem('ec_str')) || 0;
-    mastered = JSON.parse(localStorage.getItem('ec_mst')) || [];
-    studentName = localStorage.getItem('ec_name') || "";
+    xp          = parseInt(localStorage.getItem('ec_xp'))    || 0;
+    streak      = parseInt(localStorage.getItem('ec_str'))   || 0;
+    mastered    = JSON.parse(localStorage.getItem('ec_mst')) || [];
+    studentName = localStorage.getItem('ec_name')            || "";
   } catch(e) { xp = 0; streak = 0; mastered = []; }
 }
 
@@ -511,8 +511,7 @@ function saveState() {
 }
 
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────
-// FIX: removed mode:'no-cors' and use Content-Type:'text/plain'
-// so the request body reaches Apps Script intact.
+// Syncs once at the end, and as a safety net on tab close.
 async function syncXP() {
   try {
     await fetch(SCRIPT_URL, {
@@ -523,6 +522,12 @@ async function syncXP() {
     setTimeout(refreshLeaderboard, 2500);
   } catch(e) { console.error("Sync Error", e); }
 }
+
+// Safety net: if student closes the tab before finishing,
+// sendBeacon fires a final XP update silently in the background.
+window.addEventListener('beforeunload', () => {
+  navigator.sendBeacon(SCRIPT_URL, JSON.stringify({ name: studentName, xp: xp }));
+});
 
 async function refreshLeaderboard() {
   const lb = document.getElementById('lb-list');
@@ -543,7 +548,9 @@ async function refreshLeaderboard() {
         <span style="color:var(--gold)">${s[1]} XP</span>
       </div>
     `).join('');
-  } catch(e) { lb.innerHTML = "<div style='padding:6px 0;font-size:.7rem;color:var(--muted)'>Offline</div>"; }
+  } catch(e) {
+    lb.innerHTML = "<div style='padding:6px 0;font-size:.7rem;color:var(--muted)'>Offline</div>";
+  }
 }
 
 // ─── LEADERBOARD TOGGLE ───────────────────────────────────
@@ -578,9 +585,9 @@ function filterWords(q) {
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────
+// syncXP() is NOT called here — navigation is free
 function goTo(idx) {
   if (idx < 0 || idx >= vocab.length) return;
-  syncXP();
   currentIndex = idx;
   const item = vocab[idx];
 
@@ -595,7 +602,7 @@ function goTo(idx) {
   const ktRow  = document.getElementById('kt-row');
   const ktSpan = document.getElementById('kt-tags');
   if (item.keys && item.keys.length) {
-    ktSpan.innerHTML  = item.keys.map(k => '<span class="kt">' + k + '</span>').join(' ');
+    ktSpan.innerHTML    = item.keys.map(k => '<span class="kt">' + k + '</span>').join(' ');
     ktRow.style.display = 'flex';
   } else { ktRow.style.display = 'none'; }
 
@@ -606,7 +613,7 @@ function goTo(idx) {
 }
 
 function showQ() {
-  document.getElementById('quiz-ui').style.display     = 'block';
+  document.getElementById('quiz-ui').style.display      = 'block';
   document.getElementById('grading-zone').style.display = 'none';
 }
 
@@ -615,8 +622,8 @@ function revealDef() {
   const userIn = document.getElementById('user-input').value.trim();
   const item   = vocab[currentIndex];
 
-  document.getElementById('g-title').textContent = item.word;
-  document.getElementById('g-zh').textContent    = item.zh;
+  document.getElementById('g-title').textContent     = item.word;
+  document.getElementById('g-zh').textContent        = item.zh;
   document.getElementById('your-answer').textContent = userIn || '(no answer · 未填写)';
 
   const low  = userIn.toLowerCase();
@@ -636,8 +643,8 @@ function revealDef() {
 
   const fill  = document.getElementById('cov-fill');
   const pctEl = document.getElementById('cov-pct');
-  pctEl.textContent = pct + '%';
-  fill.style.width  = pct + '%';
+  pctEl.textContent     = pct + '%';
+  fill.style.width      = pct + '%';
   const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--gold)' : 'var(--red)';
   fill.style.background = color;
   pctEl.style.color     = color;
@@ -646,8 +653,10 @@ function revealDef() {
   document.getElementById('grading-zone').style.display = 'block';
 }
 
+// ─── SCORING ──────────────────────────────────────────────
 function handleScore(correct) {
   const item = vocab[currentIndex];
+
   if (correct) {
     streak++;
     xp += 20;
@@ -664,14 +673,18 @@ function handleScore(correct) {
     streak = 0;
   }
 
-  syncXP();
   saveState();
   updateStats();
   updateProgress();
 
-  if (currentIndex < vocab.length - 1) {
+  const isLastWord = currentIndex === vocab.length - 1;
+
+  if (!isLastWord) {
+    // Mid-session: just move on, no sheet write
     setTimeout(() => goTo(currentIndex + 1), 600);
   } else {
+    // Final word: write to Google Sheet once
+    syncXP();
     setTimeout(showDone, 700);
   }
 }
